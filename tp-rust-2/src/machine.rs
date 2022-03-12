@@ -12,10 +12,9 @@ pub struct Machine {
 
 #[derive(Debug)]
 pub enum MachineError {
-    WrongRegAddr,
     InvalidOpcode,
     InvalidRegisterNumb,
-    InvalidMemNumb,
+    InvalidMemAddr,
 }
 
 impl Machine {
@@ -29,9 +28,11 @@ impl Machine {
         assert!(memory.len() <= MEMORY_SIZE, "The memory is larger than the machine memory");
 
         let mut initial_mem: [u8; MEMORY_SIZE] = [0; MEMORY_SIZE];
+        //==== FIRST OPTION ====
         //for i in 0..memory.len() {
         //    initial_mem[i] = memory[i];
         //}
+        //==== SECOND OPTION ====
         initial_mem[0..memory.len()].copy_from_slice(memory);
         Machine {mem: initial_mem, reg: [0; NREGS]}
     }
@@ -63,18 +64,14 @@ impl Machine {
     /// `false` if the execution must continue.
     pub fn step_on<T: Write>(&mut self, fd: &mut T) -> Result<bool, MachineError> {
 
-        //let num_inst: u8 = self.mem[self.reg[IP] as usize];
-        let index = self.reg[IP] as usize;
+        let inst_addr = self.reg[IP] as usize;
 
-        if check_mem(index) {
-            return Err(MachineError::InvalidMemNumb);
-        }
+        let opcode = self.read_mem(inst_addr)?; 
 
-        let num_inst: u8 = self.mem[index];
-
-        match num_inst {
+        match opcode {
             1 => return self.move_if(),
             2 => return self.store(),
+            3 => return self.load(),
             _ => return Err(MachineError::InvalidOpcode)
         }
         //Ok(true)
@@ -82,52 +79,70 @@ impl Machine {
 
     pub fn move_if(&mut self) -> Result<bool, MachineError> {
 
-        let index = self.reg[IP] as usize;
+        let inst_addr = self.reg[IP] as usize;
 
-        if !check_mem(index + 1) || !check_mem(index + 2) || !check_mem(index + 3) {
-            return Err(MachineError::InvalidMemNumb);
+        // Increment the IP
+        self.reg[IP] += 4u32;
+
+        // Decode
+        let reg_a = self.read_mem(inst_addr + 1)? as usize;
+        let reg_b = self.read_mem(inst_addr + 2)? as usize;
+        let reg_c = self.read_mem(inst_addr + 3)? as usize;
+
+        let reg_b_cont: u32 = self.read_reg(reg_b)?;
+        let reg_c_cont: u32 = self.read_reg(reg_c)?;
+
+        // Execute
+        if reg_c_cont != 0 {
+            self.set_reg(reg_a, reg_b_cont);
         }
 
-        let reg_a: u8 = self.mem[index + 1];
-        let reg_b: u8 = self.mem[index + 2];
-        let reg_c: u8 = self.mem[index + 3];
-
-        if !check_reg(reg_a) || !check_reg(reg_b) || !check_reg(reg_c) {
-            return Err(MachineError::InvalidRegisterNumb);
-        }
-
-        else {
-            if self.reg[reg_c as usize] != 0 {
-                self.reg[reg_a as usize] = self.reg[reg_b as usize];
-            }
-        }
         Ok(false)
     }
 
-    pub fn store(& mut self) -> Result<bool, MachineError> {
+    pub fn store(&mut self) -> Result<bool, MachineError> {
         
-        let index = self.reg[IP] as usize;
+        let inst_addr = self.reg[IP] as usize;
 
-        if !check_mem(index + 1) || !check_mem(index + 2) {
-            return Err(MachineError::InvalidMemNumb);
-        }
+        // Increment the IP
+        self.reg[IP] += 3u32;
 
-        let reg_a: u8 = self.mem[index + 1];
-        let reg_b: u8 = self.mem[index + 2];
+        // Decode
+        let reg_a = self.read_mem(inst_addr + 1)? as usize;
+        let reg_b = self.read_mem(inst_addr + 2)? as usize;
 
-        if !check_reg(reg_a) || !check_reg(reg_b) {
-            return Err(MachineError::InvalidRegisterNumb);
-        }
+        // Execute
+        let reg_a_cont = self.read_reg(reg_a)? as usize;
+        let reg_b_cont = self.read_reg(reg_b)?;
 
-        let data: usize = self.reg[reg_b as usize] as usize;
-        let add: u32 = self.reg[reg_a as usize];
+        let data: [u8; 4] = reg_b_cont.to_le_bytes();
+        self.mem[reg_a_cont] = data[0];
+        self.mem[self.read_mem(reg_a_cont + 1)? as usize] = data[1];
+        self.mem[self.read_mem(reg_a_cont + 2)? as usize] = data[2];
+        self.mem[self.read_mem(reg_a_cont + 3)? as usize] = data[3];
 
-        //vérifier les index
+        Ok(false)
 
-        self.mem[add as usize] = data
+    }
 
-        self.mem[reg_a as usize]
+    pub fn load(&mut self) -> Result<bool, MachineError> {
 
+        let instr_addr = self.reg[IP] as usize;
+
+        // Increment the IP 
+        self.reg[IP] += 3u32;
+
+        // Decode
+        let reg_a = self.read_mem(instr_addr + 1)? as usize;
+        let reg_b = self.read_mem(instr_addr + 2)? as usize;
+
+        // Execute
+        let addr = self.read_reg(reg_b)? as usize;
+        let data_to_load_4 = self.read_mem(addr as usize)?;
+        let data_to_load_3 = self.read_mem((addr + 1) as usize)?;
+        let data_to_load_2 = self.read_mem((addr + 2) as usize)?;
+        let data_to_load_1 = self.read_mem((addr + 3) as usize)?;
+        
         Ok(false)
 
     }
@@ -140,13 +155,13 @@ impl Machine {
 
     /// Reference onto the machine current set of registers.
     pub fn regs(&self) -> &[u32] {
-        unimplemented!()  // Implement me!
+        return &self.reg[..];
     }
 
     /// Sets a register to the given value.
     pub fn set_reg(&mut self, reg: usize, value: u32) -> Result<(), MachineError> {
-        if reg > NREGS {
-            return Err(MachineError::WrongRegAddr);
+        if reg >= NREGS {
+            return Err(MachineError::InvalidRegisterNumb);
         }
         self.reg[reg] = value;
         Ok(())
@@ -154,20 +169,26 @@ impl Machine {
 
     /// Reference onto the machine current memory.
     pub fn memory(&self) -> &[u8] {
-        unimplemented!()  // Implement me!
+        return &self.mem[..];
     }
-}
 
-pub fn check_reg(reg: u8) -> bool {
-    if reg > (NREGS - 1) as u8 {
-        return true
-    }
-    false
-}
 
-pub fn check_mem(index: usize) -> bool {
-    if index > (MEMORY_SIZE - 1) as usize {
-        return true;
+    /// Check if machine memory adress is located in the right memory space
+    /// (from 0 to MEMORY_SIZE) 
+    pub fn read_mem(&self, addr: usize) -> Result<u8, MachineError> {
+        match addr {
+            n if n <= MEMORY_SIZE => Ok(self.mem[addr]),
+            _                           => Err(MachineError::InvalidMemAddr),
+        }
     }
-    false
+
+    /// Check if the register number exists
+    /// (should be between 0 and NREGS) 
+    pub fn read_reg(&self, reg_num: usize) -> Result<u32, MachineError> {
+        match reg_num {
+            n if n <= NREGS => Ok(self.reg[reg_num]),
+            _                     => Err(MachineError::InvalidRegisterNumb),
+        }
+    }
+
 }
