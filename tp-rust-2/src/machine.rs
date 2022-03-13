@@ -72,6 +72,8 @@ impl Machine {
             1 => return self.move_if(),
             2 => return self.store(),
             3 => return self.load(),
+            4 => return self.loadimm(),
+            5 => return self.sub(),
             _ => return Err(MachineError::InvalidOpcode)
         }
         //Ok(true)
@@ -94,7 +96,7 @@ impl Machine {
 
         // Execute
         if reg_c_cont != 0 {
-            self.set_reg(reg_a, reg_b_cont);
+            self.set_reg(reg_a, reg_b_cont)?;
         }
 
         Ok(false)
@@ -138,11 +140,60 @@ impl Machine {
 
         // Execute
         let addr = self.read_reg(reg_b)? as usize;
-        let data_to_load_4 = self.read_mem(addr as usize)?;
-        let data_to_load_3 = self.read_mem((addr + 1) as usize)?;
-        let data_to_load_2 = self.read_mem((addr + 2) as usize)?;
-        let data_to_load_1 = self.read_mem((addr + 3) as usize)?;
+        let value: [u8; 4] = [self.read_mem(addr as usize)?,
+                              self.read_mem((addr + 1) as usize)?,
+                              self.read_mem((addr + 2) as usize)?,
+                              self.read_mem((addr + 3) as usize)?
+                             ];
         
+        self.set_reg(reg_a, u32::from_le_bytes(value))?;
+
+        Ok(false)
+
+    }
+
+    pub fn loadimm(&mut self) -> Result<bool, MachineError> {
+
+        let inst_addr = self.reg[IP] as usize;
+
+        // Increment the IP
+        self.reg[IP] += 4u32;
+
+        // Decode
+        let reg_a = self.read_mem(inst_addr + 1)? as usize;
+        let lh: [u8; 2] = [self.read_mem(inst_addr + 2)?,
+                           self.read_mem(inst_addr + 3)?
+                          ];
+        
+        // Execute
+        let word = i16::from_le_bytes(lh) as i32;
+
+        self.set_reg(reg_a, word as u32)?;
+
+        Ok(false)
+
+    }
+
+    pub fn sub(&mut self) -> Result<bool, MachineError> {
+
+        let inst_addr = self.reg[IP] as usize;
+
+        // Increment the IP
+        self.reg[IP] += 4u32;
+
+        // Decode
+        let reg_a = self.read_mem(inst_addr + 1)? as usize;
+        let reg_b = self.read_mem(inst_addr + 2)? as usize;
+        let reg_c = self.read_mem(inst_addr + 3)? as usize;
+
+        // Execute
+        let reg_b_cont = self.read_reg(reg_b)? as i32;
+        let reg_c_cont = self.read_reg(reg_c)? as i32;
+
+        let result: i32 = reg_b_cont - reg_c_cont;
+
+        self.set_reg(reg_a, result as u32)?;
+
         Ok(false)
 
     }
