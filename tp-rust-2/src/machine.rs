@@ -15,6 +15,7 @@ pub enum MachineError {
     InvalidOpcode,
     InvalidRegisterNumb,
     InvalidMemAddr,
+    WriteError
 }
 
 impl Machine {
@@ -74,9 +75,11 @@ impl Machine {
             3 => return self.load(),
             4 => return self.loadimm(),
             5 => return self.sub(),
+            6 => return self.out(fd),
+            7 => return self.exit(),
+            8 => return self.out_number(fd),
             _ => return Err(MachineError::InvalidOpcode)
         }
-        //Ok(true)
     }
 
     pub fn move_if(&mut self) -> Result<bool, MachineError> {
@@ -198,6 +201,48 @@ impl Machine {
 
     }
 
+    pub fn out<T: Write>(&mut self, fd: &mut T) -> Result<bool, MachineError> {
+
+        let inst_addr = self.reg[IP] as usize;
+
+        // Increment the IP
+        self.reg[IP] += 2u32;
+
+        // Decode
+        let reg_a = self.read_mem(inst_addr + 1)? as usize;
+
+        // Execute
+        let my_char = (self.read_reg(reg_a)? as u8) as char;
+
+        match fd.write_all(my_char.to_string().as_bytes()) {
+            Ok(_) => Ok(false),
+            Err(_)=> Err(MachineError::WriteError)
+        }
+
+    }
+
+    // SI ERROR C QUE G PAS INCREMENTE IP
+    pub fn exit(&mut self) -> Result<bool, MachineError> {
+        Ok(true)
+    }
+
+    pub fn out_number<T: Write>(&mut self, fd: &mut T) -> Result<bool, MachineError> {
+
+        let inst_addr = self.reg[IP] as usize;
+
+        // Increment the IP
+        self.reg[IP] += 2u32;
+
+        // Decode
+        let reg_a = self.read_mem(inst_addr + 1)? as usize;
+
+        // Execute
+        let number = self.read_reg(reg_a)?.to_string();
+        let dec = i32::from_str_radix(&number, 10).unwrap();
+
+
+    }
+
     /// Similar to [step_on](Machine::step_on).
     /// If output instructions are run, they print on standard output.
     pub fn step(&mut self) -> Result<bool, MachineError> {
@@ -238,7 +283,7 @@ impl Machine {
     pub fn read_reg(&self, reg_num: usize) -> Result<u32, MachineError> {
         match reg_num {
             n if n <= NREGS => Ok(self.reg[reg_num]),
-            _                     => Err(MachineError::InvalidRegisterNumb),
+            _                      => Err(MachineError::InvalidRegisterNumb),
         }
     }
 
