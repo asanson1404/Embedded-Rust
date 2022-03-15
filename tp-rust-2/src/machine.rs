@@ -121,13 +121,15 @@ impl Machine {
         let reg_b_cont = self.read_reg(reg_b)?;
 
         let data: [u8; 4] = reg_b_cont.to_le_bytes();
-        self.mem[reg_a_cont] = data[0];
-        self.mem[self.read_mem(reg_a_cont + 1)? as usize] = data[1];
-        self.mem[self.read_mem(reg_a_cont + 2)? as usize] = data[2];
-        self.mem[self.read_mem(reg_a_cont + 3)? as usize] = data[3];
+        if reg_a_cont + 3 < MEMORY_SIZE {
+            self.mem[reg_a_cont] = data[0];
+            self.mem[reg_a_cont + 1] = data[1];
+            self.mem[reg_a_cont + 2] = data[2];
+            self.mem[reg_a_cont + 3] = data[3];
+        }
 
         Ok(false)
-
+        
     }
 
     pub fn load(&mut self) -> Result<bool, MachineError> {
@@ -143,10 +145,10 @@ impl Machine {
 
         // Execute
         let addr = self.read_reg(reg_b)? as usize;
-        let value: [u8; 4] = [self.read_mem(addr as usize)?,
-                              self.read_mem((addr + 1) as usize)?,
-                              self.read_mem((addr + 2) as usize)?,
-                              self.read_mem((addr + 3) as usize)?
+        let value: [u8; 4] = [self.read_mem(addr)?,
+                              self.read_mem(addr + 1)?,
+                              self.read_mem(addr + 2)?,
+                              self.read_mem(addr + 3)?
                              ];
         
         self.set_reg(reg_a, u32::from_le_bytes(value))?;
@@ -221,8 +223,11 @@ impl Machine {
 
     }
 
-    // SI ERROR C QUE G PAS INCREMENTE IP
     pub fn exit(&mut self) -> Result<bool, MachineError> {
+
+        //Increment the IP
+        self.reg[IP] += 1u32;
+
         Ok(true)
     }
 
@@ -235,12 +240,15 @@ impl Machine {
 
         // Decode
         let reg_a = self.read_mem(inst_addr + 1)? as usize;
-
+        
         // Execute
-        let number = self.read_reg(reg_a)?.to_string();
-        let dec = i32::from_str_radix(&number, 10).unwrap();
+        let number = self.read_reg(reg_a)?;
+        let _dec = i32::from_str_radix(&number.to_string(), 10).unwrap();
 
-
+        match fd.write_all(_dec.to_string().as_bytes()) {
+            Ok(_) => Ok(false),
+            Err(_)=> Err(MachineError::WriteError)
+        }
     }
 
     /// Similar to [step_on](Machine::step_on).
