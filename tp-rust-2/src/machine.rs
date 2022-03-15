@@ -33,6 +33,7 @@ impl Machine {
         initial_mem[0..memory.len()].copy_from_slice(memory);
         Machine {mem: initial_mem, reg: [0; NREGS]}
     }
+    
 
     /// Run until the program terminates or until an error happens.
     /// If output instructions are run, they print on `fd`.
