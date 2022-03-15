@@ -29,11 +29,7 @@ impl Machine {
         assert!(memory.len() <= MEMORY_SIZE, "The memory is larger than the machine memory");
 
         let mut initial_mem: [u8; MEMORY_SIZE] = [0; MEMORY_SIZE];
-        //==== FIRST OPTION ====
-        //for i in 0..memory.len() {
-        //    initial_mem[i] = memory[i];
-        //}
-        //==== SECOND OPTION ====
+
         initial_mem[0..memory.len()].copy_from_slice(memory);
         Machine {mem: initial_mem, reg: [0; NREGS]}
     }
@@ -127,7 +123,9 @@ impl Machine {
             self.mem[reg_a_cont + 2] = data[2];
             self.mem[reg_a_cont + 3] = data[3];
         }
-
+        else {
+            return Err(MachineError::InvalidMemAddr);
+        }
         Ok(false)
         
     }
@@ -145,14 +143,18 @@ impl Machine {
 
         // Execute
         let addr = self.read_reg(reg_b)? as usize;
-        let value: [u8; 4] = [self.read_mem(addr)?,
-                              self.read_mem(addr + 1)?,
-                              self.read_mem(addr + 2)?,
-                              self.read_mem(addr + 3)?
-                             ];
+        if addr + 3 < MEMORY_SIZE {
+            let value: [u8; 4] = [self.read_mem(addr)?,
+                                  self.read_mem(addr + 1)?,
+                                  self.read_mem(addr + 2)?,
+                                  self.read_mem(addr + 3)?
+                                 ];
+            self.set_reg(reg_a, u32::from_le_bytes(value))?;
+        }
+        else {
+            return Err(MachineError::InvalidMemAddr);
+        }
         
-        self.set_reg(reg_a, u32::from_le_bytes(value))?;
-
         Ok(false)
 
     }
@@ -195,7 +197,8 @@ impl Machine {
         let reg_b_cont = self.read_reg(reg_b)? as i32;
         let reg_c_cont = self.read_reg(reg_c)? as i32;
 
-        let result: i32 = reg_b_cont - reg_c_cont;
+        //let result = i32::wrapping_sub(reg_b_cont, reg_c_cont);
+        let result = reg_b_cont.wrapping_sub(reg_c_cont);
 
         self.set_reg(reg_a, result as u32)?;
 
@@ -242,7 +245,7 @@ impl Machine {
         let reg_a = self.read_mem(inst_addr + 1)? as usize;
         
         // Execute
-        let number = self.read_reg(reg_a)?;
+        let number = self.read_reg(reg_a)? as i32;
         let _dec = i32::from_str_radix(&number.to_string(), 10).unwrap();
 
         match fd.write_all(_dec.to_string().as_bytes()) {
@@ -278,20 +281,20 @@ impl Machine {
 
 
     /// Check if machine memory adress is located in the right memory space
-    /// (from 0 to MEMORY_SIZE) 
+    /// (from 0 to MEMORY_SIZE - 1) 
     pub fn read_mem(&self, addr: usize) -> Result<u8, MachineError> {
         match addr {
-            n if n <= MEMORY_SIZE => Ok(self.mem[addr]),
+            n if n < MEMORY_SIZE => Ok(self.mem[addr]),
             _                           => Err(MachineError::InvalidMemAddr),
         }
     }
 
     /// Check if the register number exists
-    /// (should be between 0 and NREGS) 
+    /// (should be between 0 and NREGS - 1) 
     pub fn read_reg(&self, reg_num: usize) -> Result<u32, MachineError> {
         match reg_num {
-            n if n <= NREGS => Ok(self.reg[reg_num]),
-            _                      => Err(MachineError::InvalidRegisterNumb),
+            n if n < NREGS => Ok(self.reg[reg_num]),
+            _                     => Err(MachineError::InvalidRegisterNumb),
         }
     }
 
