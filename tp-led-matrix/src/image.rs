@@ -4,7 +4,12 @@
 use micromath::F32Ext;
 use core::ops::Mul;
 use core::ops::Div;
+use core::ops::Index;
+use core::ops::IndexMut;
 use crate::gamma::gamma_correct;
+
+const LINES:   u32 = 8;
+const COLUMNS: u32 = 8;
 
 #[derive(Clone, Copy, Default)]
 /// Data structure which represents an individual
@@ -77,7 +82,30 @@ pub trait Default {
 impl Default for Image {
 
     fn default() -> Self {
-        Image::new_solid(Color{r:0, g:0, b:0})
+        Image::new_solid(Color::default())
+    }
+
+}
+
+/// This trait allows indexing into our data structure
+impl Index<(usize, usize)> for Image {
+
+    type Output = Color;
+
+    /// Fonction which associate to a row and a column a Color
+    /// from the data structure of Image (an array)
+    fn index(&self, r_l: (usize, usize)) -> &Color {
+        &self.0[(r_l.0 - 1) * COLUMNS as usize + r_l.1]
+    }
+}
+
+/// This trait allows indexing into our mutable data structure
+impl IndexMut<(usize, usize)> for Image {
+
+    /// Fonction which associate to a row and a column a Color
+    /// from the data structure of Image (an array)
+    fn index_mut(&mut self, r_l: (usize, usize)) -> &mut Color {
+        &mut self.0[(r_l.0 - 1) * COLUMNS as usize + r_l.1]
     }
 
 }
