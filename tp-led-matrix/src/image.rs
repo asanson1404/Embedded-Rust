@@ -11,9 +11,10 @@ use crate::gamma::gamma_correct;
 const LINES:   u32 = 8;
 const COLUMNS: u32 = 8;
 
-#[derive(Clone, Copy, Default)]
 /// Data structure which represents an individual
 /// RGB pixel
+#[derive(Clone, Copy, Default)]
+#[repr(C)]
 pub struct Color {
     r: u8,
     g: u8,
@@ -22,6 +23,7 @@ pub struct Color {
 
 /// Data strucure which represents a whole 
 /// 8x8 image made of pixels
+#[repr(transparent)]
 pub struct Image ([Color; 64]);
 
 impl Color {
@@ -71,6 +73,24 @@ impl Image {
         Image([color; 64])
     }
 
+    /// Function which references the content of a particular row
+    pub fn row(&self, row: usize) -> &[Color] {
+        &self.0[(row * COLUMNS as usize)..(row * COLUMNS as usize + COLUMNS as usize)]
+    }
+
+    /// Function returnign an Image containing a gradient.
+    /// This function build a gradient from a given color
+    /// to black by dividing the reference color by (1 + row*row + col)
+    pub fn gradient(color: Color) -> Self {
+        let mut def_image = Image::default();
+        for row in 0..LINES {
+            for col in 0..COLUMNS {
+                def_image[(row as usize, col as usize)] = color.div((1 + row*row + col) as f32);
+            }
+        }
+        def_image
+    }
+
 }
 
 pub trait Default {
@@ -108,6 +128,25 @@ impl IndexMut<(usize, usize)> for Image {
         &mut self.0[(r_l.0 - 1) * COLUMNS as usize + r_l.1]
     }
 
+}
+
+/// Trait to see an image as an immutable array of bytes. 
+impl AsRef<[u8; 192]> for Image {
+
+    /// Function which converts an Image into a reference to an array of 192 individual bytes.
+    fn as_ref(&self) -> &[u8; 192] {
+        unsafe {core::mem::transmute::<&Image, &[u8; 192]>(self)}
+    }
+}
+
+/// Trait to see an image as a mutable array of bytes. 
+impl AsMut<[u8; 192]> for Image {
+
+    /// Function which converts a mutable Image into a reference to a mutable
+    /// array of 192 individual bytes.
+    fn as_mut(&mut self) -> &mut [u8; 192] {
+        unsafe {core::mem::transmute::<&mut Image, &mut [u8; 192]>(self)}
+    }
 }
 
 /// Fonction to be sure a Color component will stay within
