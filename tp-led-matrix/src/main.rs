@@ -8,6 +8,8 @@ use stm32l4xx_hal::{pac, prelude::*};
 use panic_probe as _;
 //use rtt_target::{rtt_init_print, rprintln};
 use defmt_rtt as _;
+use tp_led_matrix::{Image, Color};
+use tp_led_matrix::Matrix;
 
 /*
 #[panic_handler]
@@ -37,6 +39,38 @@ fn run(_cp: pac::CorePeripherals, dp: pac::Peripherals) -> ! {
     //rtt_init_print!();
     //rprintln!("Hello, world!");
     defmt::info!("Hello, world!");
-    panic!("The program stopped");
+    //panic!("The program stopped");
+
+    let mut gpioa = dp.GPIOA.split(&mut rcc.ahb2);
+    let mut gpiob = dp.GPIOB.split(&mut rcc.ahb2);
+    let mut gpioc = dp.GPIOC.split(&mut rcc.ahb2);
+    
+    let mut led_matrix = Matrix::new(
+        gpioa.pa2,
+        gpioa.pa3,
+        gpioa.pa4,
+        gpioa.pa5,
+        gpioa.pa6,
+        gpioa.pa7,
+        gpioa.pa15,
+        gpiob.pb0,
+        gpiob.pb1,
+        gpiob.pb2,
+        gpioc.pc3,
+        gpioc.pc4,
+        gpioc.pc5,
+        &mut gpioa.moder,
+        &mut gpioa.otyper,
+        &mut gpiob.moder,
+        &mut gpiob.otyper,
+        &mut gpioc.moder,
+        &mut gpioc.otyper,
+        clocks);
+
+    let blue_grad = Image::gradient(Color::BLUE);
+    loop {
+        led_matrix.display_image(&blue_grad);
+    }
+
 }
 

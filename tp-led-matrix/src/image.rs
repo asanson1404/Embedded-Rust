@@ -8,17 +8,17 @@ use core::ops::Index;
 use core::ops::IndexMut;
 use crate::gamma::gamma_correct;
 
-const LINES:   u32 = 8;
-const COLUMNS: u32 = 8;
+//const LINES:   u32 = 8;
+//const COLUMNS: u32 = 8;
 
 /// Data structure which represents an individual
 /// RGB pixel
 #[derive(Clone, Copy, Default)]
 #[repr(C)]
 pub struct Color {
-    r: u8,
-    g: u8,
-    b: u8,
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
 }
 
 /// Data strucure which represents a whole 
@@ -28,9 +28,9 @@ pub struct Image ([Color; 64]);
 
 impl Color {
 
-    const RED:   Color = Color {r: 255, g: 0, b: 0};
-    const GREEN: Color = Color {r: 0, g: 255, b: 0};
-    const BLUE:  Color = Color {r: 0, g: 0, b: 255};
+    pub const RED:   Color = Color {r: 255, g: 0, b: 0};
+    pub const GREEN: Color = Color {r: 0, g: 255, b: 0};
+    pub const BLUE:  Color = Color {r: 0, g: 0, b: 255};
 
     /// Method which applies the gamma_correct correction 
     /// to all components of a color
@@ -75,7 +75,7 @@ impl Image {
 
     /// Function which references the content of a particular row
     pub fn row(&self, row: usize) -> &[Color] {
-        &self.0[(row * COLUMNS as usize)..(row * COLUMNS as usize + COLUMNS as usize)]
+        &self.0[(row * 8)..(row * 8 + 8)]
     }
 
     /// Function returnign an Image containing a gradient.
@@ -83,9 +83,9 @@ impl Image {
     /// to black by dividing the reference color by (1 + row*row + col)
     pub fn gradient(color: Color) -> Self {
         let mut def_image = Image::default();
-        for row in 0..LINES {
-            for col in 0..COLUMNS {
-                def_image[(row as usize, col as usize)] = color.div((1 + row*row + col) as f32);
+        for row in 0..8 {
+            for col in 0..8 {
+                def_image[(row, col)] = color.div((1 + row*row + col) as f32);
             }
         }
         def_image
@@ -115,7 +115,7 @@ impl Index<(usize, usize)> for Image {
     /// Fonction which associate to a row and a column a Color
     /// from the data structure of Image (an array)
     fn index(&self, r_l: (usize, usize)) -> &Color {
-        &self.0[(r_l.0 - 1) * COLUMNS as usize + r_l.1]
+        &self.0[r_l.0 * 8 + r_l.1]
     }
 }
 
@@ -125,7 +125,7 @@ impl IndexMut<(usize, usize)> for Image {
     /// Fonction which associate to a row and a column a Color
     /// from the data structure of Image (an array)
     fn index_mut(&mut self, r_l: (usize, usize)) -> &mut Color {
-        &mut self.0[(r_l.0 - 1) * COLUMNS as usize + r_l.1]
+        &mut self.0[r_l.0 * 8 + r_l.1]
     }
 
 }

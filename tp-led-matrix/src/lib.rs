@@ -2,9 +2,11 @@
 
 pub mod image;
 pub mod gamma;
+pub mod matrix;
 
 /// Reexporting types
 pub use image::{Color, Image};
+pub use matrix::Matrix;
 
 #[cfg(test)]
 mod tests {
