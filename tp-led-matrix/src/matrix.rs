@@ -176,9 +176,11 @@ impl Matrix {
             self.send_byte(pixels[i].gamma_correct().b);
             self.send_byte(pixels[i].gamma_correct().g);
             self.send_byte(pixels[i].gamma_correct().r);
+            if i == 5 {
+                if row > 0 {self.row(row-1, PinState::Low);}
+                else       {self.row(7, PinState::Low);}
+            }
         }
-        if row > 0 {self.row(row-1, PinState::Low);}
-        else       {self.row(7, PinState::Low);}
         self.pulse_lat();
         self.activate_row(row);
 
@@ -198,7 +200,7 @@ impl Matrix {
 
     /// Display a full image, row by row, as fast as possible.
     pub fn display_image(&mut self, image: &Image) {
-        for i in (0..8).rev() {
+        for i in 0..8 {
             let pixels = image.row(i);
             self.send_row(i, pixels);
         }

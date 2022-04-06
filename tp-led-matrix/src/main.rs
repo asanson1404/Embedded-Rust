@@ -68,6 +68,20 @@ fn run(_cp: pac::CorePeripherals, dp: pac::Peripherals) -> ! {
         clocks);
 
     let blue_grad = Image::gradient(Color::BLUE);
+    for i in 0..8 {
+                    defmt::trace!(
+                        "Ligne {} : {}/{}/{} {}/{}/{} {}/{}/{} {}/{}/{} {}/{}/{} {}/{}/{} {}/{}/{} {}/{}/{}",
+                        i,
+                        blue_grad[(i, 0)].r, blue_grad[(i, 0)].g, blue_grad[(i, 0)].b,
+                        blue_grad[(i, 1)].r, blue_grad[(i, 1)].g, blue_grad[(i, 1)].b,
+                        blue_grad[(i, 2)].r, blue_grad[(i, 2)].g, blue_grad[(i, 2)].b,
+                        blue_grad[(i, 3)].r, blue_grad[(i, 3)].g, blue_grad[(i, 3)].b,
+                        blue_grad[(i, 4)].r, blue_grad[(i, 4)].g, blue_grad[(i, 4)].b,
+                        blue_grad[(i, 5)].r, blue_grad[(i, 5)].g, blue_grad[(i, 5)].b,
+                        blue_grad[(i, 6)].r, blue_grad[(i, 6)].g, blue_grad[(i, 6)].b,
+                        blue_grad[(i, 7)].r, blue_grad[(i, 7)].g, blue_grad[(i, 7)].b
+                    );
+                }
     loop {
         led_matrix.display_image(&blue_grad);
     }
