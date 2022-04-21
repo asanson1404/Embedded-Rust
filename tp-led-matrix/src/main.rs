@@ -20,18 +20,19 @@ fn panic_handler(_panic_info: &core::panic::PanicInfo) -> ! {
 }
 */
 
-#[rtic::app(device = pac, dispatchers = [USART2])]
+#[rtic::app(device = pac, dispatchers = [USART2, USART3])]
 mod app {
+
+    use tp_led_matrix::image::Default;
 
     use super::*;
 
     #[shared]
-    struct Shared {}
+    struct Shared {image: Image}
     
     #[local]
     struct Local {
         matrix: Matrix,
-        image: Image,
     }
 
     #[monotonic(binds = SysTick, default = true)]
@@ -87,13 +88,17 @@ mod app {
             &mut gpioc.otyper,
             clocks);
 
-        let my_image = Image::gradient(Color::BLUE);
+        let def_image = Image::default();
 
-        // The display task gets spawned after init() terminates.
+        // Usefull when the field image was in the Local structure
+        //let my_image = Image::gradient(Color::BLUE);
+
+        // The display and rotate_image tasks get spawned after init() terminates.
         display::spawn(mono.now()).unwrap();
+        rotate_image::spawn(mono.now(), 0).unwrap();
 
         // Return the resources and the monotonic timer
-        (Shared {}, Local { matrix: led_matrix, image: my_image }, init::Monotonics(mono))
+        (Shared { image: def_image }, Local { matrix: led_matrix }, init::Monotonics(mono))
     }
 
     #[idle(local = [count: u32 = 0])]
@@ -113,17 +118,36 @@ mod app {
         }
     }
 
-    #[task(local = [matrix, image, next_line: usize = 0])]
-    fn display(cx: display::Context, at: Instant) {
+    /// Task which modifies the image shared ressource every second. 
+    #[task(shared = [image], priority = 1)]
+    fn rotate_image(mut cx: rotate_image::Context, at: Instant, mut color_index: usize) {
+        
+        cx.shared.image.lock(|image| {
+            match color_index {
+                0 => *image = Image::gradient(Color::RED),
+                1 => *image = Image::gradient(Color::GREEN),
+                2 => *image = Image::gradient(Color::BLUE),
+                _ => panic!("Incompatible color index"),
+            }
+        });
+        color_index = (color_index + 1) % 3;
+        rotate_image::spawn_after(1.secs(), at, color_index).unwrap();
+    }
 
+    #[task(local = [matrix, next_line: usize = 0], shared = [image], priority = 2)]
+    fn display(mut cx: display::Context, at: Instant) {
+        
         // Display line next_line (cx.local.next_line) of
         // the image (cx.local.image) on the matrix (cx.local.matrix).
         // All those are mutable references.
-        let pixels = cx.local.image.row(*cx.local.next_line);
-        cx.local.matrix.send_row(*cx.local.next_line, pixels);
+        cx.shared.image.lock(|image| {
+            // Here you can use image, which is a &mut Image,
+            // to display the appropriate row
+            cx.local.matrix.send_row(*cx.local.next_line, image.row(*cx.local.next_line));
 
-        // Increment next_line up to 7 and wraparound to 0
-        *cx.local.next_line =(*cx.local.next_line + 1) % 8;
+            // Increment next_line up to 7 and wraparound to 0
+            *cx.local.next_line = (*cx.local.next_line + 1) % 8;
+        });
 
         // The display task gets respawned as soon as the display task terminates 
         // since no task with a higher priority will be waiting
