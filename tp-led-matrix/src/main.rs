@@ -12,6 +12,8 @@ use tp_led_matrix::{Image, Color};
 use tp_led_matrix::Matrix;
 use dwt_systick_monotonic::DwtSystick;
 use dwt_systick_monotonic::ExtU32;
+use stm32l4xx_hal::serial::{Config, Event, Rx, Serial};
+use core::mem;
 
 /* Définition d'un panic handler (plus utile en fin de TP)
 #[panic_handler]
@@ -32,7 +34,9 @@ mod app {
     
     #[local]
     struct Local {
-        matrix: Matrix,
+        matrix:     Matrix,
+        usart1_rx:  Rx<stm32l4xx_hal::pac::USART1>,
+        next_image: Image
     }
 
     #[monotonic(binds = SysTick, default = true)]
@@ -66,6 +70,23 @@ mod app {
         let mut gpiob = dp.GPIOB.split(&mut rcc.ahb2);
         let mut gpioc = dp.GPIOC.split(&mut rcc.ahb2);
 
+        // Configuration of PB6 et PB7 into the right mode
+        let tx_pb6 = gpiob.pb6.into_alternate::<7>(&mut gpiob.moder, &mut gpiob.otyper, &mut gpiob.afrl);
+        let rx_pb7 = gpiob.pb7.into_alternate::<7>(&mut gpiob.moder, &mut gpiob.otyper, &mut gpiob.afrl);
+
+        // Instanciate the Config structure for serial port usart1
+        // and set the baudrate to 38400 bits per second
+        let  usart1_config = Config::default().baudrate(38_400_u32.bps());
+
+        // Initialize the serial port using the above structure
+        let mut serial = Serial::usart1(dp.USART1, (tx_pb6, rx_pb7), usart1_config, clocks, &mut rcc.apb2);
+
+        // Enable the "RX not empty event"
+        serial.listen(Event::Rxne);
+
+        // Get the receiver part of the serial port 
+        let serial_rx = serial.split().1 ;
+
         let led_matrix = Matrix::new(
             gpioa.pa2,
             gpioa.pa3,
@@ -89,16 +110,17 @@ mod app {
             clocks);
 
         let def_image = Image::default();
+        let next_image= Image::default();
 
         // Usefull when the field image was in the Local structure
         //let my_image = Image::gradient(Color::BLUE);
 
         // The display and rotate_image tasks get spawned after init() terminates.
         display::spawn(mono.now()).unwrap();
-        rotate_image::spawn(mono.now(), 0).unwrap();
+        //rotate_image::spawn(mono.now(), 0).unwrap();
 
         // Return the resources and the monotonic timer
-        (Shared { image: def_image }, Local { matrix: led_matrix }, init::Monotonics(mono))
+        (Shared { image: def_image }, Local { matrix: led_matrix, usart1_rx: serial_rx, next_image }, init::Monotonics(mono))
     }
 
     #[idle(local = [count: u32 = 0])]
@@ -118,8 +140,41 @@ mod app {
         }
     }
 
+    #[task(binds = USART1,
+           local = [usart1_rx, next_image, next_pos: usize = 0],
+           shared = [image])]
+    fn receive_byte(mut cx: receive_byte::Context)
+    {
+        let next_image: &mut Image = cx.local.next_image;
+        let next_pos: &mut usize = cx.local.next_pos;
+        if let Ok(b) = cx.local.usart1_rx.read() {
+
+            // Handle the incoming byte according to the SE203 protocol
+            // and update next_image
+            // Do not forget that next_image.as_mut() might be handy here!
+            if b == 0xff {
+                *next_pos = 0;
+                return;
+            }
+            next_image.as_mut()[*next_pos] = b;
+            *next_pos += 1 ;
+
+            // If the received image is complete, make it available to
+            // the display task.
+            if *next_pos == 8 * 8 * 3 {
+                cx.shared.image.lock(|image| {
+                    // Replace the image content by the new one, for example
+                    // by swapping them, and reset next_pos
+                    mem::swap(image, next_image);
+                });
+                *next_pos = 0;
+            }
+        }
+    }
+ 
+
     /// Task which modifies the image shared ressource every second. 
-    #[task(shared = [image], priority = 1)]
+    /*#[task(shared = [image], priority = 1)]
     fn rotate_image(mut cx: rotate_image::Context, at: Instant, mut color_index: usize) {
         
         cx.shared.image.lock(|image| {
@@ -132,7 +187,7 @@ mod app {
         });
         color_index = (color_index + 1) % 3;
         rotate_image::spawn_after(1.secs(), at, color_index).unwrap();
-    }
+    }*/
 
     #[task(local = [matrix, next_line: usize = 0], shared = [image], priority = 2)]
     fn display(mut cx: display::Context, at: Instant) {
