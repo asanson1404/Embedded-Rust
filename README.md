@@ -1,8 +1,8 @@
-# Practical class to learn the Embedded Rust
+# Practical classes to learn Rust
 
 This repo contains two labs made by Samuel Tardieu to learn the Rust programming language :
 
-### Creation of a Virtual Machine in Rust
+## LAB1: Creation of a Virtual Machine in Rust
 
 `tp-rust-VM/` is a project where we created a simple Virtual Machine in Rust. This VM has **16 virtual registers** and a **virtual memory of 4096 bytes**. It is able to perform some basics operations such as `move_if`, `store`, `load`, `loadimm` and `sub`. By combining these simple operations, it is possible to process more complexe instructions such as `push`, `pop`, `mult`, `fact` and others.
 
@@ -21,7 +21,7 @@ $ cargo test --test basic_operations
 $ cargo test --test complex_execution
 ```
 
-### Embedded Rust
+## LAB2: Embedded Rust
 
 The goal of the lab `tp-led-matrix/` is to program the **STM32L475 board** (Arm Cortex-M4) from scratch and display visual elements on a led matrix. You can find more info about this board in the [reference manuel](https://www.st.com/resource/en/reference_manual/rm0351-stm32l47xxx-stm32l48xxx-stm32l49xxx-and-stm32l4axxx-advanced-armbased-32bit-mcus-stmicroelectronics.pdf).
 
@@ -52,7 +52,7 @@ $ cargo build
 # release mode
 $ cargo build --release
 ```
-For your information, we used the linker script provided by the `cortex-m-rt` crate and we defined the memory regions in `memory.x`.<br>
+(For your information, we used the linker script provided by the `cortex-m-rt` crate and we defined the memory regions in `memory.x`).<br>
 
 You then must ensure that you have either one of `arm-none-eabi-gdb` or `gdb-multiarch` installed on your system. If this is not the case, install it before proceeding.
 
@@ -66,7 +66,7 @@ Finally, when the board is connected, run the program:
 $ cargo run
 ```
 
-To understand what really happens under the hood, you will see the following line in `.cargo/config.toml`:
+<br>To understand what really happens under the hood, you will see the following line in `.cargo/config.toml`:
 ```shell
 runner = "arm-none-eabi-gdb -q -x jlink.gdb"
 ```
