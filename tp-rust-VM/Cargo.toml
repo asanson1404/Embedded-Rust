@@ -1,5 +1,5 @@
 [package]
-name = "tp-rust-2"
+name = "tp-rust-vm"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,5 +8,5 @@ name = "interpreter"
 path = "src/lib.rs"
 
 [[bin]]
-name = "tp-rust-2"
+name = "tp-rust-vm"
 path = "src/main.rs"

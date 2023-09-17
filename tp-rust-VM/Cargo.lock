@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "tp-rust-VM"
+name = "tp-rust-vm"
 version = "0.1.0"
