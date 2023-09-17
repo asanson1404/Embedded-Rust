@@ -1,6 +1,6 @@
 # Practical classes to learn Rust
 
-This repo contains two labs made by Samuel Tardieu to learn the Rust programming language :
+This repo contains two labs written by Samuel Tardieu to learn the Rust programming language :
 
 ## LAB1: Creation of a Virtual Machine in Rust
 
